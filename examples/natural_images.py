@@ -45,7 +45,7 @@ for c, (name, terms) in enumerate(EXAMPLES.items()):
                              for t, col in legend(terms)],
                     loc="upper center", bbox_to_anchor=(0.5, -0.01), ncol=2,
                     fontsize=9, frameon=False)
-    ax[2, c].imshow(heatmap(seg.scores[..., 0], view.size))   # the first term's row of A
+    ax[2, c].imshow(Image.blend(view, heatmap(seg.scores[..., 0], view.size), 0.6))  # first term
     ax[2, c].set_title(f"score map: {terms[0]}", fontsize=10)
 for a in ax.ravel():
     a.axis("off")
