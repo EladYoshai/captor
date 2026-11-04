@@ -4,7 +4,9 @@
 
 Elad Yoshai and Natan T. Shaked, Tel Aviv University
 
-[Paper (arXiv)](https://arxiv.org/abs/TODO) · [Project page](https://eladyoshai.github.io/captor/) · [Demo](https://huggingface.co/spaces/EladY/captor-demo) · [Pretrained tables](https://huggingface.co/EladY/captor)
+[Paper (arXiv)](https://arxiv.org/abs/TODO) · [Project page](https://eladyoshai.github.io/captor/) · [Pretrained tables](https://huggingface.co/EladY/captor)
+
+[![Open in Colab: natural images](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/EladYoshai/captor/blob/main/examples/natural_images.ipynb) natural images · [![Open in Colab: pathology](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/EladYoshai/captor/blob/main/examples/pathology.ipynb) pathology
 
 Grounding a text query in an image needs a matrix that scores every term against
 every patch. Vision-language models compute it with an aligned text encoder, which
@@ -80,8 +82,11 @@ python scripts/segment.py --table coco_dinov2reg_k640 --image examples/images/pi
 ```
 
 `examples/natural_images.ipynb` and `examples/pathology.ipynb` (and the equivalent
-`.py` scripts) run end to end on the bundled images. `demo/app.py` is a small
-Gradio app with both domains (`pip install gradio && python demo/app.py`).
+`.py` scripts) run end to end on the bundled images, locally or in Google Colab with
+the buttons above (the pathology notebook asks for your Hugging Face login, since
+CONCH is gated). `demo/app.py` is a small Gradio app: choose natural images or
+pathology, upload an image, pick terms and see the map
+(`pip install gradio && python demo/app.py`, then open the address it prints).
 
 ## Pretrained tables
 
