@@ -25,9 +25,16 @@ EXAMPLES = next((p for p in (HERE / "examples", HERE.parent / "examples" / "imag
 HOSTED = bool(os.environ.get("SPACE_ID"))
 NATURAL, PATHOLOGY = "Natural images", "Pathology"
 PATH_TABLES = {"CONCH": "pathcap_conch_k80"}
-DEFAULT_TERMS = {NATURAL: ["person", "dog", "cat", "car", "bicycle", "horse", "pizza",
-                           "dining table", "bench", "potted plant"],
+DEFAULT_TERMS = {NATURAL: ["giraffe", "zebra"],
                  PATHOLOGY: ["tumor", "stroma", "lymphocyte", "necrosis", "adipose"]}
+# the objects in each bundled photograph, filled in when the example is picked
+EXAMPLE_TERMS = {"giraffe_zebra.jpg": ["giraffe", "zebra"],
+                 "beagle_sofa.jpg": ["dog"],
+                 "elephants.jpg": ["elephant"],
+                 "cyclist.jpg": ["bicycle", "person", "car"],
+                 "street.jpg": ["bicycle", "person", "car"],
+                 "breakfast.jpg": ["dining table", "sandwich", "cup", "bottle"]}
+DEFAULT_FADE = {NATURAL: 0.3, PATHOLOGY: 0.0}
 PATHOLOGY_NOTE = (
     "Pathology mode is not available in the hosted demo. CONCH and UNI are gated "
     "and licensed for non-commercial research use by registered users, and the "
@@ -59,20 +66,27 @@ def term_choices(domain: str, encoder: str) -> list[str]:
     return load_table(resolve_table(table_for(domain, encoder))).terms
 
 
+def example_files() -> list[Path]:
+    """Bundled images, the photographs in the order of EXAMPLE_TERMS."""
+    order = list(EXAMPLE_TERMS)
+    return sorted(EXAMPLES.glob("*.jpg"),
+                  key=lambda p: (order.index(p.name) if p.name in order else len(order), p.name))
+
+
 def on_domain(domain: str, encoder: str):
     path = domain == PATHOLOGY
-    ex = [p for p in sorted(EXAMPLES.glob("*.jpg"))
-          if p.name.startswith("bcss_") == path]
+    ex = [p for p in example_files() if p.name.startswith("bcss_") == path]
     return (gr.update(choices=term_choices(domain, encoder),
                       value=DEFAULT_TERMS[domain]),
             gr.update(visible=path and not HOSTED),
             gr.update(value=PATHOLOGY_NOTE if path and HOSTED else "",
                       visible=path and HOSTED),
             gr.update(value=[str(p) for p in ex]),
-            None)
+            None,
+            gr.update(value=DEFAULT_FADE[domain]))
 
 
-def run(domain: str, encoder: str, image, terms: list[str]):
+def run(domain: str, encoder: str, image, terms: list[str], fade: float = 0.0):
     if image is None:
         raise gr.Error("Upload an image or pick an example first.")
     if domain == PATHOLOGY and HOSTED:
@@ -88,7 +102,9 @@ def run(domain: str, encoder: str, image, terms: list[str]):
     seg = model.segment(image, terms)
     view = crop_like_encoder(image, domain == NATURAL)
     view.thumbnail((640, 640))
-    shares = seg.shares()
+    keep = seg.confident(fade) if fade > 0 else None
+    shares = seg.shares() if keep is None else {
+        t: float((seg.labels[keep] == i).mean()) for i, t in enumerate(seg.terms)}
     chips = "".join(
         f'<span style="display:inline-block;margin:2px 8px 2px 0">'
         f'<span style="display:inline-block;width:12px;height:12px;'
@@ -97,12 +113,16 @@ def run(domain: str, encoder: str, image, terms: list[str]):
         for t, col in legend(seg.terms) if shares[t] > 0)
     maps = [(Image.blend(view, heatmap(seg.scores[..., i], view.size), 0.6), t)
             for i, t in enumerate(seg.terms)]
-    return overlay(view, seg.labels), chips, maps
+    return overlay(view, seg.labels, keep=keep), chips, maps
 
 
-def pick_example(evt: gr.SelectData, files):
-    return Image.open(files[evt.index][0] if isinstance(files[evt.index], (list, tuple))
-                      else files[evt.index])
+def pick_example(evt: gr.SelectData, files, terms):
+    f = files[evt.index]
+    path = Path(f[0] if isinstance(f, (list, tuple)) else f)
+    for name, t in EXAMPLE_TERMS.items():
+        if path.name.endswith(name):
+            terms = t
+    return Image.open(path), terms
 
 
 with gr.Blocks(title="CAPTOR") as demo:
@@ -119,29 +139,33 @@ with gr.Blocks(title="CAPTOR") as demo:
     with gr.Row():
         with gr.Column():
             image = gr.Image(type="pil", label="2. Image")
-            gallery = gr.Gallery(value=[str(p) for p in sorted(EXAMPLES.glob("*.jpg"))
+            gallery = gr.Gallery(value=[str(p) for p in example_files()
                                         if not p.name.startswith("bcss_")],
                                  label="or pick an example", columns=4, height=140,
                                  allow_preview=False)
             terms = gr.Dropdown(choices=term_choices(NATURAL, "CONCH"),
                                 value=DEFAULT_TERMS[NATURAL], multiselect=True,
-                                label="3. Terms")
+                                label="3. Terms (the objects you expect in the image)")
+            fade = gr.Slider(0.0, 0.6, value=DEFAULT_FADE[NATURAL], step=0.05,
+                             label="Fade patches where no term scores well "
+                                   "(fraction of the top score, display only)")
             go = gr.Button("Segment", variant="primary")
         with gr.Column():
             labels = gr.Image(label="Label map", type="pil")
             shares = gr.HTML()
             maps = gr.Gallery(label="Score map of each term (red high, blue low)",
                               columns=3, height=300)
-    domain.change(on_domain, [domain, encoder], [terms, encoder, note, gallery, image])
+    domain.change(on_domain, [domain, encoder],
+                  [terms, encoder, note, gallery, image, fade])
     encoder.change(lambda d, e: gr.update(choices=term_choices(d, e)),
                    [domain, encoder], terms)
-    gallery.select(pick_example, gallery, image)
-    go.click(run, [domain, encoder, image, terms], [labels, shares, maps])
+    gallery.select(pick_example, [gallery, terms], [image, terms])
+    go.click(run, [domain, encoder, image, terms, fade], [labels, shares, maps])
     gr.Markdown(
         "Natural images: DINOv2 ViT-B/14 with registers at 196 pixels (centre crop), "
         "table counted from 15,000 COCO captions, 78 object terms. Pathology: a "
         "field read at 224 pixels, table counted from 32,463 PathCap captions. "
-        "Example photographs are from Wikimedia Commons (CC BY-SA 4.0; authors in "
+        "Example photographs are from Wikimedia Commons (CC BY-SA or CC0, authors in "
         "the repository's image credits) and histology fields from BCSS (CC BY 4.0).")
 
 if __name__ == "__main__":

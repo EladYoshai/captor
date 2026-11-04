@@ -94,6 +94,18 @@ class Segmentation:
         n = self.labels.size
         return {t: float((self.labels == i).sum() / n) for i, t in enumerate(self.terms)}
 
+    def confident(self, fraction: float = 0.3) -> np.ndarray:
+        """(G, G) mask of patches whose best score is at least ``fraction`` of the
+        image's top score.
+
+        Every patch is named with one of the given terms, so on natural images the
+        sky, road or wall still receives the closest object. This mask is a display
+        aid for fading such patches; it is not part of the method, and the paper's
+        evaluation scores the object patches only.
+        """
+        best = self.scores.max(-1)
+        return best >= fraction * best.max()
+
 
 class CAPTOR:
     """Text-encoder-free grounding with a counted term-by-word table.

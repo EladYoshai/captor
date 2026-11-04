@@ -51,12 +51,20 @@ Natural images (DINOv2 ViT-B/14 with registers and the COCO caption table):
 from captor import CAPTOR
 
 model = CAPTOR.from_pretrained("coco_dinov2reg_k640")      # downloads the table once
-seg = model.segment("examples/images/cat_lizard.jpg", ["cat", "dog", "bird", "bench"])
+seg = model.segment("examples/images/giraffe_zebra.jpg", ["giraffe", "zebra"])
 print(seg.shares())          # share of the image named by each term
 seg.labels                   # (14, 14) index of the term at each patch
 seg.scores                   # (14, 14, T) score of every term at every patch
-model.score("examples/images/cat_lizard.jpg", ["cat", "dog"])   # whole-image ranking
+seg.confident(0.3)           # (14, 14) patches where a listed term scores well
+model.score("examples/images/giraffe_zebra.jpg", ["giraffe", "dog"])   # whole-image ranking
 ```
+
+List the objects you expect in the photo. Every patch is named with one of the given
+terms and the COCO table has object terms only, so the sky, road or ground still
+receives the closest object. `seg.confident()` marks the patches where a listed term
+scores well, and `overlay(view, seg.labels, keep=seg.confident())` fades the rest.
+This is a display aid, not part of the method, and the evaluation scores object
+patches only.
 
 Pathology (CONCH image encoder and the PathCap caption table):
 
@@ -77,8 +85,8 @@ From the command line, `segment.py` saves the image, its label map and, with
 `--maps`, one score map per term:
 
 ```bash
-python scripts/segment.py --table coco_dinov2reg_k640 --image examples/images/pizza.jpg \
-    --terms "pizza,dining table,cup,fork" --maps
+python scripts/segment.py --table coco_dinov2reg_k640 --image examples/images/breakfast.jpg \
+    --terms "dining table,sandwich,cup,bottle" --maps
 ```
 
 `examples/natural_images.ipynb` and `examples/pathology.ipynb` (and the equivalent

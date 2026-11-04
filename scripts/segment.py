@@ -26,6 +26,10 @@ def main() -> None:
     ap.add_argument("--terms", default="", help="comma-separated; default all terms")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--maps", action="store_true", help="also draw each term's scores")
+    ap.add_argument("--fade", type=float, default=None,
+                    help="fade patches whose best score is below this fraction of the "
+                         "image's top score (display only; default 0.3 for natural "
+                         "images, 0 for pathology)")
     ap.add_argument("--device", default="cpu")
     a = ap.parse_args()
 
@@ -38,13 +42,16 @@ def main() -> None:
     terms = [t.strip() for t in a.terms.split(",") if t.strip()] or None
     image = Image.open(a.image).convert("RGB")
     seg = model.segment(image, terms)
-    view = crop_like_encoder(image, model.table.encoder == "dinov2_reg")
+    natural = model.table.encoder == "dinov2_reg"
+    view = crop_like_encoder(image, natural)
     view.thumbnail((768, 768))
+    fade = (0.3 if natural else 0.0) if a.fade is None else a.fade
+    keep = seg.confident(fade) if fade > 0 else None
 
     for t, s in sorted(seg.shares().items(), key=lambda kv: -kv[1]):
         if s > 0:
             print(f"{t:<20}{100 * s:5.1f}% of patches")
-    panels = [view, overlay(view, seg.labels)]
+    panels = [view, overlay(view, seg.labels, keep=keep)]
     titles = ["image", "CAPTOR"]
     if a.maps:
         for i, t in enumerate(seg.terms):
@@ -55,7 +62,7 @@ def main() -> None:
         x.imshow(im)
         x.set_title(ti)
         x.axis("off")
-    used = set(seg.labels.ravel().tolist())
+    used = set((seg.labels if keep is None else seg.labels[keep]).ravel().tolist())
     handles = [Patch(color=[c / 255 for c in col], label=t)
                for i, (t, col) in enumerate(legend(seg.terms)) if i in used]
     fig.legend(handles=handles, loc="lower center", ncol=min(len(handles), 6),

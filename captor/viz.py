@@ -31,10 +31,20 @@ def colorize(labels: np.ndarray, size: Optional[tuple[int, int]] = None) -> Imag
     return im.resize(size, Image.NEAREST) if size else im
 
 
-def overlay(image: Image.Image, labels: np.ndarray, alpha: float = 0.5) -> Image.Image:
-    """``image`` blended with its colour-coded label map."""
+def overlay(image: Image.Image, labels: np.ndarray, alpha: float = 0.5,
+            keep: Optional[np.ndarray] = None) -> Image.Image:
+    """``image`` blended with its colour-coded label map.
+
+    With a boolean ``keep`` mask on the label grid (for example
+    ``Segmentation.confident()``), patches outside it are left uncoloured and faded.
+    """
     image = image.convert("RGB")
-    return Image.blend(image, colorize(labels, image.size), alpha)
+    out = Image.blend(image, colorize(labels, image.size), alpha)
+    if keep is None:
+        return out
+    faded = Image.blend(image, Image.new("RGB", image.size, (235, 235, 235)), 0.65)
+    mask = Image.fromarray(np.asarray(keep, np.uint8) * 255).resize(image.size, Image.NEAREST)
+    return Image.composite(out, faded, mask)
 
 
 def heatmap(scores: np.ndarray, size: Optional[tuple[int, int]] = None) -> Image.Image:

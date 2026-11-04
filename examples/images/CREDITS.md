@@ -8,10 +8,12 @@ long side; nothing else was changed.
 
 | file | original | author | licence |
 |---|---|---|---|
-| `cat_lizard.jpg` | [Cat playing with a lizard](https://commons.wikimedia.org/wiki/File:Cat_playing_with_a_lizard.jpg) | Basile Morin | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
-| `girl_dog.jpg` | [Human–canine friendship - girl hugging her dog tightly at golden hour in Laos](https://commons.wikimedia.org/wiki/File:Human%E2%80%93canine_friendship_-_girl_hugging_her_dog_tightly_at_golden_hour_in_Laos.jpg) | Basile Morin | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
-| `pizza.jpg` | [L&B Spumoni Gardens pizza (41436)](https://commons.wikimedia.org/wiki/File:L%26B_Spumoni_Gardens_pizza_(41436).jpg) | Rhododendrites | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
-| `horse.jpg` | [Horse December 2014-1](https://commons.wikimedia.org/wiki/File:Horse_December_2014-1.jpg) | Alvesgaspar | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| `giraffe_zebra.jpg` | [Giraffes at Dublin Zoo (African Plains section)](https://commons.wikimedia.org/wiki/File:GIRAFFES_AT_DUBLIN_ZOO_(AFRICAN_PLAINS_SECTION)-128906_(34685386712).jpg) | William Murphy from Dublin, Ireland | [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/) |
+| `beagle_sofa.jpg` | [A Beagle relaxing on the sofa 2](https://commons.wikimedia.org/wiki/File:A_Beagle_relaxing_on_the_sofa_2.jpg) | Slyronit | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| `elephants.jpg` | [Elephant herd (African bush elephant)](https://commons.wikimedia.org/wiki/File:Elephant_Herd_Of_Elephants_African_Bush_Elephant.jpg) | cocoparisienne | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `cyclist.jpg` | [Cyclist crossing a street, Quebec City](https://commons.wikimedia.org/wiki/File:Cyclist_crossing_a_street,_Quebec_City.jpg) | Wilfredor | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `breakfast.jpg` | [Kenyan breakfast, Qaffee Spot, 2025 (01)](https://commons.wikimedia.org/wiki/File:Kenyan_breakfast,_Qaffee_Spot,_2025_(01).jpg) | Bahnfrend | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| `street.jpg` | [Sunny street scene in the street Sarphatistraat with cyclists biking](https://commons.wikimedia.org/wiki/File:Sunny_Street_scene_in_the_street_Sarphatistraat_with_cyclists_biking;_free_photo_Amsterdam,_Fons_Heijnsbroek_10-2021.jpg) | Fons Heijnsbroek | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
 
 The resized copies are shared under the same licence as their originals.
 
