@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAPTOR</title>
+<meta name="description" content="CAPTOR: text-encoder-free grounding by counting caption co-occurrence over a frozen encoder's visual words.">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1b1d21; --muted: #5b616b; --line: #e3e5e8;
+    --card: #f6f7f9; --accent: #1f5fbf; --code: #f1f3f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121417; --fg: #e7e9ec; --muted: #a0a6b0; --line: #2a2e34;
+      --card: #1a1d21; --accent: #7fb0ff; --code: #1e2227;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121417; --fg: #e7e9ec; --muted: #a0a6b0; --line: #2a2e34;
+    --card: #1a1d21; --accent: #7fb0ff; --code: #1e2227;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  main { max-width: 920px; margin: 0 auto; padding: 48px 16px 64px; }
+  header { text-align: center; margin-bottom: 36px; }
+  h1 { font-size: clamp(30px, 6vw, 46px); margin: 0 0 6px; letter-spacing: 0.5px; }
+  .subtitle { font-size: clamp(17px, 2.6vw, 21px); color: var(--fg); margin: 0 auto 18px; max-width: 720px; }
+  .authors { font-size: 18px; margin: 0; }
+  .affil { color: var(--muted); margin: 2px 0 22px; }
+  nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  nav a {
+    display: inline-block; padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px;
+    color: var(--fg); text-decoration: none; background: var(--card); font-size: 15px;
+  }
+  nav a:hover { border-color: var(--accent); color: var(--accent); }
+  h2 { font-size: 22px; margin: 44px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  p { margin: 0 0 14px; }
+  figure { margin: 18px 0 8px; }
+  figure img {
+    width: 100%; height: auto; display: block; border-radius: 8px;
+    background: #ffffff; padding: 10px; border: 1px solid var(--line);
+  }
+  figcaption { color: var(--muted); font-size: 14.5px; margin-top: 8px; }
+  .narrow img { max-width: 640px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  pre {
+    background: var(--code); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.5;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+  a { color: var(--accent); }
+  footer { color: var(--muted); font-size: 13.5px; margin-top: 48px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>CAPTOR</h1>
+    <p class="subtitle">Text-encoder-free grounding by counting caption co-occurrence over a frozen encoder's visual words</p>
+    <p class="authors">Elad Yoshai &nbsp;and&nbsp; Natan T. Shaked</p>
+    <p class="affil">Tel Aviv University</p>
+    <nav>
+      <a href="https://arxiv.org/abs/TODO">Paper</a>
+      <a href="https://github.com/EladYoshai/captor">Code</a>
+      <a href="https://huggingface.co/spaces/EladY/captor-demo">Demo</a>
+      <a href="https://huggingface.co/EladY/captor">Pretrained tables</a>
+    </nav>
+  </header>
+
+  <h2>Summary</h2>
+  <p>
+    Grounding a text query in an image needs a matrix that scores every term against every patch.
+    Vision-language models compute it with an aligned text encoder, which many image encoders,
+    such as pathology models trained on slides alone, do not have. CAPTOR estimates the matrix
+    without a text encoder. It clusters a frozen image encoder's patch tokens into visual words and
+    describes each captioned image by the share of its patches in each word. A term's signature is
+    the standardized difference of those shares between images whose captions mention the term and
+    the rest. The matrix then factorizes into a term-by-word table and a query-independent image
+    factor, so an image is encoded once and a new term adds one row to the table. On COCO, scored on
+    the cells one object owns, CAPTOR reaches 0.565 mIoU, and on held-out breast-cancer patients 0.497
+    mIoU. Read through CAPTOR, UNI, an encoder trained on slides alone with no text tower, can be
+    queried in words.
+  </p>
+
+  <h2>Method</h2>
+  <figure class="narrow">
+    <svg viewBox="0 0 640 230" role="img" aria-label="Offline, captions are counted into a term-by-word table S; at inference, an image's patches are assigned to visual words and every term is a lookup." style="width:100%;height:auto;color:var(--fg)">
+      <style>.b{fill:var(--card);stroke:var(--fg);stroke-width:1.2;rx:8}.t{fill:var(--fg);font:14px system-ui,sans-serif;text-anchor:middle}.s{fill:var(--muted);font:12px system-ui,sans-serif;text-anchor:middle}.a{stroke:var(--fg);stroke-width:1.4;marker-end:url(#ar)}</style>
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="currentColor"/></marker></defs>
+      <text class="s" x="320" y="18">offline, once</text>
+      <rect class="b" x="10" y="30" width="170" height="60"/><text class="t" x="95" y="56">captioned images</text><text class="s" x="95" y="76">frozen image encoder</text>
+      <rect class="b" x="235" y="30" width="170" height="60"/><text class="t" x="320" y="56">visual words</text><text class="s" x="320" y="76">k-means on patch tokens</text>
+      <rect class="b" x="460" y="30" width="170" height="60"/><text class="t" x="545" y="56">table S</text><text class="s" x="545" y="76">term × word, by counting</text>
+      <line class="a" x1="180" y1="60" x2="232" y2="60"/><line class="a" x1="405" y1="60" x2="457" y2="60"/>
+      <text class="s" x="320" y="128">for every new image and any supported term</text>
+      <rect class="b" x="10" y="140" width="170" height="60"/><text class="t" x="95" y="166">new image</text><text class="s" x="95" y="186">encoded once</text>
+      <rect class="b" x="235" y="140" width="170" height="60"/><text class="t" x="320" y="166">image factor Ψ</text><text class="s" x="320" y="186">patch → word assignment</text>
+      <rect class="b" x="460" y="140" width="170" height="60"/><text class="t" x="545" y="166">A = S Ψ</text><text class="s" x="545" y="186">term score at every patch</text>
+      <line class="a" x1="180" y1="170" x2="232" y2="170"/><line class="a" x1="405" y1="170" x2="457" y2="170"/>
+      <line class="a" x1="545" y1="90" x2="545" y2="137"/>
+    </svg>
+    <figcaption>The caption corpus is counted once into a term-by-word table S. A new image is encoded
+      once and assigned to visual words, and the score of every term at every patch is a lookup in S.
+      No text encoder and no gradient training are involved.</figcaption>
+  </figure>
+
+  <h2>Examples</h2>
+  <figure>
+    <img src="natural_examples.jpg" alt="Score maps of one term on each of ten high-resolution photographs." loading="lazy">
+    <figcaption>One row of the score matrix on ten photographs, each read at 196 pixels: the score of the
+      photograph's term at every patch (red high, blue low). Photographs from Wikimedia Commons:
+      "cat", "dog" and "bicycle" by Basile Morin, "train" by Kabelleger and David Gubler, "pizza" and
+      "car" by Rhododendrites, "horse" by Alvesgaspar, "boat" by Norbert Nagel, "airplane" by Carlos
+      Delgado, all CC BY-SA 3.0 or 4.0, and "laptop" by PantheraLeo1359531, CC BY 4.0.</figcaption>
+  </figure>
+  <div class="grid">
+    <figure>
+      <img src="pathology_examples.png" alt="Breast-cancer fields from BCSS with annotation, CAPTOR on CONCH, and SCLIP with the CONCH text encoder." loading="lazy">
+      <figcaption>Five tissues on BCSS breast-cancer fields: annotation, CAPTOR on the CONCH image
+        encoder, and SCLIP reading CONCH's text encoder; numbers are per-field mIoU. Fields from BCSS
+        (Amgad et al., 2019), CC BY 4.0.</figcaption>
+    </figure>
+  </div>
+
+  <h2>Use it</h2>
+<pre><code>pip install git+https://github.com/EladYoshai/captor.git
+
+from captor import CAPTOR
+model = CAPTOR.from_pretrained("coco_dinov2reg_k640")      # or "pathcap_conch_k80"
+seg = model.segment("photo.jpg", ["cat", "dog", "bed"])
+seg.labels, seg.scores, seg.shares()</code></pre>
+  <div class="table-wrap">
+    <table>
+      <tr><th>table</th><th>encoder</th><th>caption corpus</th><th>terms</th></tr>
+      <tr><td><code>coco_dinov2reg_k640</code></td><td>DINOv2 ViT-B/14 with registers</td><td>COCO, 15,000 images</td><td>78</td></tr>
+      <tr><td><code>pathcap_conch_k80</code></td><td>CONCH</td><td>PathCap, 32,463 figures</td><td>25</td></tr>
+    </table>
+  </div>
+
+  <h2>Citation</h2>
+<pre><code>@article{yoshai2026captor,
+  title   = {{CAPTOR}: Text-Encoder-Free Grounding by Counting Caption Co-occurrence
+             over the Visual Words of a Frozen Encoder},
+  author  = {Yoshai, Elad and Shaked, Natan T.},
+  journal = {arXiv preprint arXiv:TODO},
+  year    = {2026}
+}</code></pre>
+
+  <footer>
+    Code under the MIT License. Pretrained tables are counted from COCO captions (CC BY 4.0) and
+    PathCap captions (CC BY-NC 2.0); encoder weights follow their own licences.
+  </footer>
+</main>
+</body>
+</html>

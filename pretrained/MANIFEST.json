@@ -1,0 +1,36 @@
+{
+ "hub_repository": "EladY/captor",
+ "format_version": 1,
+ "tables": [
+  {
+   "name": "coco_dinov2reg_k640",
+   "file": "coco_dinov2reg_k640.npz",
+   "in_git": false,
+   "encoder": "dinov2_reg (DINOv2 ViT-B/14 with registers, 196 px, 14 x 14 grid)",
+   "words": 640,
+   "vocabularies": 4,
+   "joint_words": 178828,
+   "caption_corpus": "COCO train2017, 15,000 captioned images",
+   "terms": 78,
+   "term_list": "the 80 COCO object categories except toaster and hair drier, which do not clear their permutation null",
+   "readout": "soft assignment m=16, beta=10; joint words with trust lambda=3; one round of caption-conditioned recounting; null-scaled signatures; phrase-aware caption matching with full names required for 8 terms; propagation",
+   "reference_result": "COCO val2017, reporting half (2,500 images): mIoU 0.5654, accuracy 0.768",
+   "bytes": 66646748,
+   "sha256": "4a3ba1727a7a26a86b2acf377c366b0ee3325d9cdcb7cf6b525b798971bb12cb"
+  },
+  {
+   "name": "pathcap_conch_k80",
+   "file": "pathcap_conch_k80.npz",
+   "in_git": true,
+   "encoder": "conch (CONCH ViT-B/16 image trunk, field at 224 px read at 448 px, 28 x 28 grid)",
+   "words": 80,
+   "vocabularies": 4,
+   "caption_corpus": "PathCap, 32,463 captioned figures",
+   "terms": 25,
+   "readout": "hard assignment, vocabularies averaged, no null division, substring caption matching; propagation",
+   "reference_result": "BCSS, 62 reporting patients (134 fields): mIoU 0.4966",
+   "bytes": 1023762,
+   "sha256": "63527fe3af5553e8e95e2d248bb4ede10089aa4b05eeff35ea0f5105f38c7bcc"
+  }
+ ]
+}
