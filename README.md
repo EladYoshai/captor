@@ -62,10 +62,9 @@ model.score("examples/images/giraffe_zebra.jpg", ["giraffe", "dog"])   # whole-i
 List the objects you expect in the photo. Every patch is named with one of the given
 terms and the COCO table has object terms only, so the sky, road or ground still
 receives the closest object. `seg.confident()` marks the patches where a listed term
-scores well. For display, `smooth_overlay(view, seg.scores, fade=0.3)` upsamples the
-patch scores to pixels before picking each pixel's term and fades pixels where no
-listed term scores well. Both are display aids, not part of the method, and the
-evaluation scores object patches on the patch grid.
+scores well, and `overlay(view, seg.labels, keep=seg.confident())` fades the rest.
+This is a display aid, not part of the method, and the evaluation scores object
+patches only.
 
 Pathology (CONCH image encoder and the PathCap caption table):
 

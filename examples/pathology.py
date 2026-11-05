@@ -17,7 +17,7 @@ from matplotlib.patches import Patch
 from PIL import Image
 
 from captor import CAPTOR
-from captor.viz import heatmap, legend, smooth_overlay
+from captor.viz import heatmap, legend, overlay
 
 HERE = Path(__file__).parent
 TERMS = ["tumor", "stroma", "lymphocyte", "necrosis", "adipose"]
@@ -30,7 +30,7 @@ for c, path in enumerate(FIELDS):
     seg = model.segment(field, TERMS)
     print(path.name, {t: round(s, 2) for t, s in seg.shares().items()})
     ax[0, c].imshow(field)
-    ax[1, c].imshow(smooth_overlay(field, seg.scores))
+    ax[1, c].imshow(overlay(field, seg.labels))
     ax[2, c].imshow(heatmap(seg.scores[..., TERMS.index("tumor")], field.size))
     ax[2, c].set_title("score map: tumor")
 for a in ax.ravel():

@@ -13,7 +13,7 @@ from matplotlib.patches import Patch
 from PIL import Image
 
 from captor import CAPTOR
-from captor.viz import crop_like_encoder, heatmap, legend, smooth_overlay
+from captor.viz import crop_like_encoder, heatmap, legend, overlay
 
 HERE = Path(__file__).parent
 # Each photograph with the COCO objects that appear in it. Every patch is named
@@ -40,7 +40,7 @@ for c, (name, terms) in enumerate(EXAMPLES.items()):
     ax[0, c].imshow(view)
     ax[0, c].set_title(name, fontsize=10)
     # faded patches: no listed term scores well there (sky, road, grass)
-    ax[1, c].imshow(smooth_overlay(view, seg.scores, fade=0.3))
+    ax[1, c].imshow(overlay(view, seg.labels, keep=keep))
     ax[1, c].legend(handles=[Patch(color=[v / 255 for v in col], label=t)
                              for t, col in legend(terms)],
                     loc="upper center", bbox_to_anchor=(0.5, -0.01), ncol=2,
