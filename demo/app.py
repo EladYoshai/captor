@@ -17,7 +17,7 @@ import gradio as gr
 from PIL import Image
 
 from captor import CAPTOR
-from captor.viz import crop_like_encoder, heatmap, legend, overlay
+from captor.viz import crop_like_encoder, heatmap, legend, smooth_overlay
 
 HERE = Path(__file__).resolve().parent
 EXAMPLES = next((p for p in (HERE / "examples", HERE.parent / "examples" / "images")
@@ -113,7 +113,7 @@ def run(domain: str, encoder: str, image, terms: list[str], fade: float = 0.0):
         for t, col in legend(seg.terms) if shares[t] > 0)
     maps = [(Image.blend(view, heatmap(seg.scores[..., i], view.size), 0.6), t)
             for i, t in enumerate(seg.terms)]
-    return overlay(view, seg.labels, keep=keep), chips, maps
+    return smooth_overlay(view, seg.scores, fade), chips, maps
 
 
 def pick_example(evt: gr.SelectData, files, terms):

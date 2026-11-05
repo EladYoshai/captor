@@ -15,7 +15,7 @@ from pathlib import Path
 from PIL import Image
 
 from captor import CAPTOR
-from captor.viz import crop_like_encoder, heatmap, legend, overlay
+from captor.viz import crop_like_encoder, heatmap, legend, smooth_overlay
 
 
 def main() -> None:
@@ -51,7 +51,7 @@ def main() -> None:
     for t, s in sorted(seg.shares().items(), key=lambda kv: -kv[1]):
         if s > 0:
             print(f"{t:<20}{100 * s:5.1f}% of patches")
-    panels = [view, overlay(view, seg.labels, keep=keep)]
+    panels = [view, smooth_overlay(view, seg.scores, fade)]
     titles = ["image", "CAPTOR"]
     if a.maps:
         for i, t in enumerate(seg.terms):

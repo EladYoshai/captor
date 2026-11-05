@@ -4,7 +4,7 @@
 
 Elad Yoshai and Natan T. Shaked, Tel Aviv University
 
-[Paper (arXiv)](https://arxiv.org/abs/TODO) · [Project page](https://eladyoshai.github.io/captor/) · [Pretrained tables](https://huggingface.co/EladY/captor)
+[Paper (arXiv)](https://arxiv.org/abs/2611.05599) · [Project page](https://eladyoshai.github.io/captor/) · [Pretrained tables](https://huggingface.co/EladY/captor)
 
 [![Open in Colab: natural images](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/EladYoshai/captor/blob/main/examples/natural_images.ipynb) natural images · [![Open in Colab: pathology](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/EladYoshai/captor/blob/main/examples/pathology.ipynb) pathology
 
@@ -62,9 +62,10 @@ model.score("examples/images/giraffe_zebra.jpg", ["giraffe", "dog"])   # whole-i
 List the objects you expect in the photo. Every patch is named with one of the given
 terms and the COCO table has object terms only, so the sky, road or ground still
 receives the closest object. `seg.confident()` marks the patches where a listed term
-scores well, and `overlay(view, seg.labels, keep=seg.confident())` fades the rest.
-This is a display aid, not part of the method, and the evaluation scores object
-patches only.
+scores well. For display, `smooth_overlay(view, seg.scores, fade=0.3)` upsamples the
+patch scores to pixels before picking each pixel's term and fades pixels where no
+listed term scores well. Both are display aids, not part of the method, and the
+evaluation scores object patches on the patch grid.
 
 Pathology (CONCH image encoder and the PathCap caption table):
 
@@ -215,7 +216,7 @@ released vocabularies and 0.555 with freshly fitted ones.
   title   = {{CAPTOR}: Text-Encoder-Free Grounding by Counting Caption Co-occurrence
              over the Visual Words of a Frozen Encoder},
   author  = {Yoshai, Elad and Shaked, Natan T.},
-  journal = {arXiv preprint arXiv:TODO},
+  journal = {arXiv preprint arXiv:2611.05599},
   year    = {2026}
 }
 ```

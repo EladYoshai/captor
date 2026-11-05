@@ -47,6 +47,33 @@ def overlay(image: Image.Image, labels: np.ndarray, alpha: float = 0.5,
     return Image.composite(out, faded, mask)
 
 
+def upsample(scores: np.ndarray, size: tuple[int, int]) -> np.ndarray:
+    """Bicubic upsampling of a (G, G, T) score grid to (H, W, T) pixels."""
+    w, h = size
+    return np.stack([np.asarray(Image.fromarray(scores[..., t].astype(np.float32), "F")
+                                .resize((w, h), Image.BICUBIC))
+                     for t in range(scores.shape[-1])], -1)
+
+
+def smooth_overlay(image: Image.Image, scores: np.ndarray, fade: float = 0.0,
+                   alpha: float = 0.5) -> Image.Image:
+    """``image`` blended with a label map drawn at pixel resolution.
+
+    The patch scores are upsampled before the best term is picked, so the
+    boundaries follow the scores instead of the patch grid. With ``fade`` > 0,
+    pixels whose best score is below ``fade`` times the image's top score are left
+    uncoloured and faded. Display only; the labels themselves are per patch.
+    """
+    image = image.convert("RGB")
+    up = upsample(scores, image.size)
+    labels = up.argmax(-1)
+    keep = None
+    if fade > 0:
+        best = up.max(-1)
+        keep = best >= fade * scores.max(-1).max()
+    return overlay(image, labels, alpha, keep)
+
+
 def heatmap(scores: np.ndarray, size: Optional[tuple[int, int]] = None) -> Image.Image:
     """A blue-to-red map of one term's scores, standardised over the image."""
     z = (scores - scores.mean()) / (scores.std() + 1e-12)
