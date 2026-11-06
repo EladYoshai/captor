@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How CAPTOR works</title>
+<meta name="description" content="A step-by-step walkthrough of CAPTOR: naming image regions by counting words in captions over a frozen encoder's visual words, with no text encoder and no training.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1b1d21; --muted: #5b616b; --line: #e3e5e8;
+    --card: #f6f7f9; --accent: #1f5fbf; --code: #f1f3f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121417; --fg: #e7e9ec; --muted: #a0a6b0; --line: #2a2e34;
+      --card: #1a1d21; --accent: #7fb0ff; --code: #1e2227;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121417; --fg: #e7e9ec; --muted: #a0a6b0; --line: #2a2e34;
+    --card: #1a1d21; --accent: #7fb0ff; --code: #1e2227;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  main { max-width: 920px; margin: 0 auto; padding: 48px 16px 64px; }
+  header { text-align: center; margin-bottom: 36px; }
+  h1 { font-size: clamp(30px, 6vw, 46px); margin: 0 0 6px; letter-spacing: 0.5px; }
+  .subtitle { font-size: clamp(17px, 2.6vw, 21px); color: var(--fg); margin: 0 auto 18px; max-width: 720px; }
+  .authors { font-size: 18px; margin: 0; }
+  .affil { color: var(--muted); margin: 2px 0 22px; }
+  nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  nav a {
+    display: inline-block; padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px;
+    color: var(--fg); text-decoration: none; background: var(--card); font-size: 15px;
+  }
+  nav a:hover { border-color: var(--accent); color: var(--accent); }
+  h2 { font-size: 22px; margin: 44px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  p { margin: 0 0 14px; }
+  figure { margin: 18px 0 8px; }
+  figure img {
+    width: 100%; height: auto; display: block; border-radius: 8px;
+    background: #ffffff; padding: 10px; border: 1px solid var(--line);
+  }
+  figcaption { color: var(--muted); font-size: 14.5px; margin-top: 8px; }
+  .narrow img { max-width: 640px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  pre {
+    background: var(--code); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.5;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+  a { color: var(--accent); }
+  footer { color: var(--muted); font-size: 13.5px; margin-top: 48px; border-top: 1px solid var(--line); padding-top: 16px; }
+  .kicker { margin: 0 0 6px; font-weight: 600; letter-spacing: 0.5px; }
+  .kicker a { color: var(--muted); text-decoration: none; }
+  ul { margin: 0 0 14px; padding-left: 22px; }
+  li { margin: 0 0 8px; }
+  .table-wrap { margin: 0 0 16px; }
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+  .katex { font-size: 1.08em; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="kicker"><a href="./">CAPTOR</a></p>
+    <h1>How CAPTOR works</h1>
+    <p class="subtitle">Naming image regions by counting words in captions, with no text encoder and no training. A step-by-step walkthrough on real data.</p>
+    <nav>
+      <a href="./">Project page</a>
+      <a href="https://arxiv.org/abs/2611.05599">Paper</a>
+      <a href="https://github.com/EladYoshai/captor">Code</a>
+      <a href="https://colab.research.google.com/github/EladYoshai/captor/blob/main/examples/natural_images.ipynb">Try it in Colab</a>
+    </nav>
+  </header>
+
+  <figure>
+    <img src="how/hero.jpg" alt="A giraffe and a zebra, and CAPTOR's labels for the two words" loading="lazy">
+    <figcaption>CAPTOR, asked for "giraffe" and "zebra", names every patch of the photo with one of the two words. Faded patches are those where neither word scores well.</figcaption>
+  </figure>
+
+  <h2>The idea in one paragraph</h2>
+  <p>To point at a word in an image, a model needs a score for every word at every patch of the image. Vision-language models such as CLIP get it from a text encoder, a network trained on hundreds of millions of image and caption pairs. Many strong image encoders have no text encoder, and pathology models trained on tissue alone are a common example. CAPTOR skips the text encoder. It counts which kinds of image patches tend to appear when a caption mentions a word, and turns those counts into a small table. Reading the table gives the score of every word at every patch.</p>
+
+  <h2>The object we need</h2>
+  <p>Every grounding method needs the same object, a table of scores with one row per word and one column per image patch. Call it \(A\). The entry \(A_{tp}\) says how well term \(t\) fits patch \(p\), and the label of a patch is the term with the highest score in its column.</p>
+  <p>A model such as CLIP fills \(A\) with a dot product. A text encoder \(g\) turns the term into a vector, the image side \(h\) gives a vector for the patch, and \(A\) is how well the two agree.</p>
+  $$A_{tp} = \bigl\langle g(t),\, h(x_p) \bigr\rangle$$
+  <p>CAPTOR fills the same table without \(g\). It writes \(A\) as a product of two smaller factors.</p>
+  $$A = S\,\Phi$$
+  <p>\(S\) is a table of terms against visual words, counted once from captions. \(\Phi\) records which visual word each patch of the image belongs to. The rest of this page builds the two factors one step at a time, with the released COCO table and a photo of a giraffe and a zebra.</p>
+
+  <figure class="narrow">
+    <svg viewBox="0 0 640 230" role="img" aria-label="Offline, captions are counted into a term-by-word table S; at inference, an image's patches are assigned to visual words and every term is a lookup." style="width:100%;height:auto;color:var(--fg)">
+      <style>.b{fill:var(--card);stroke:var(--fg);stroke-width:1.2;rx:8}.t{fill:var(--fg);font:14px system-ui,sans-serif;text-anchor:middle}.s{fill:var(--muted);font:12px system-ui,sans-serif;text-anchor:middle}.a{stroke:var(--fg);stroke-width:1.4;marker-end:url(#ar)}</style>
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="currentColor"/></marker></defs>
+      <text class="s" x="320" y="18">offline, once</text>
+      <rect class="b" x="10" y="30" width="170" height="60"/><text class="t" x="95" y="56">captioned images</text><text class="s" x="95" y="76">frozen image encoder</text>
+      <rect class="b" x="235" y="30" width="170" height="60"/><text class="t" x="320" y="56">visual words</text><text class="s" x="320" y="76">k-means on patch tokens</text>
+      <rect class="b" x="460" y="30" width="170" height="60"/><text class="t" x="545" y="56">table S</text><text class="s" x="545" y="76">term × word, by counting</text>
+      <line class="a" x1="180" y1="60" x2="232" y2="60"/><line class="a" x1="405" y1="60" x2="457" y2="60"/>
+      <text class="s" x="320" y="128">for every new image and any supported term</text>
+      <rect class="b" x="10" y="140" width="170" height="60"/><text class="t" x="95" y="166">new image</text><text class="s" x="95" y="186">encoded once</text>
+      <rect class="b" x="235" y="140" width="170" height="60"/><text class="t" x="320" y="166">image factor Ψ</text><text class="s" x="320" y="186">patch → word assignment</text>
+      <rect class="b" x="460" y="140" width="170" height="60"/><text class="t" x="545" y="166">A = S Ψ</text><text class="s" x="545" y="186">term score at every patch</text>
+      <line class="a" x1="180" y1="170" x2="232" y2="170"/><line class="a" x1="405" y1="170" x2="457" y2="170"/>
+      <line class="a" x1="545" y1="90" x2="545" y2="137"/>
+    </svg>
+    <figcaption>The whole method. The caption corpus is counted once into the table \(S\). A new image is encoded once and assigned to visual words, and the score of every term at every patch is a lookup in \(S\).</figcaption>
+  </figure>
+
+  <h2>Step 1. Cut the image into patches</h2>
+  <p>A vision transformer such as DINOv2 reads an image as a grid of small squares. At 196 pixels it sees a 14 by 14 grid, so 196 patches. For each patch \(p\) it outputs an embedding \(x_p\), a list of 768 numbers that describes what the patch looks like. Each embedding is scaled to length one, and the encoder stays frozen. CAPTOR never changes a single weight in it.</p>
+  <figure>
+    <img src="how/s1_patches.jpg" alt="The photo as a 14 by 14 grid, and the embeddings of its patches" loading="lazy">
+    <figcaption>Left, the 196 patches. Right, part of their embeddings, one row per patch. Patches that look alike get similar rows.</figcaption>
+  </figure>
+
+  <h2>Step 2. Turn patches into visual words</h2>
+  <p>Text is easy to count because it comes in words. Embeddings are continuous, so we make words out of them. We run \(k\)-means over the patch embeddings of all the captioned images, here 15,000 COCO photos. The \(K = 640\) cluster centres \(c_1, \dots, c_K\) are the visual words, and each patch belongs to its nearest word.</p>
+  $$w(p) = \arg\min_{k}\; \lVert x_p - c_k \rVert$$
+  <p>The words are fitted once and then frozen, so a word means the same thing in every image. That is the key property. Zebra stripes in one photo and zebra stripes in a completely different photo land in the same word.</p>
+  <figure>
+    <img src="how/s2_wordmaps.jpg" alt="Two photos coloured by visual word, with word 556 outlined in both" loading="lazy">
+    <figcaption>Each colour is one visual word. The black squares are word #556. It covers the zebra in the first photo and the zebras in a second, unrelated photo.</figcaption>
+  </figure>
+  <p>Nobody named these words. They are just clusters. Still, the patches inside a word usually turn out to be one recognisable kind of thing.</p>
+  <figure>
+    <img src="how/s3_gallery.jpg" alt="The most typical patches of six visual words" loading="lazy">
+    <figcaption>The most typical patches of six visual words, taken from the example photos. The strongest term is the COCO term whose signature, built in Step 4, is highest for that word.</figcaption>
+  </figure>
+
+  <h2>Step 3. Describe each image by its word shares</h2>
+  <p>An image can now be summarised like a document, by how often each word occurs. For image \(i\), the profile \(v^{(i)}\) holds the share of its patches that fall into each word.</p>
+  $$v^{(i)}_k = \frac{1}{P}\,\bigl|\{\,p : w(p) = k\,\}\bigr|, \qquad \sum_k v^{(i)}_k = 1$$
+  <p>\(P\) is the number of patches, 196 here. The profile records how much of the image each word covers, not where.</p>
+  <figure>
+    <img src="how/s4_profile.jpg" alt="The giraffe photo coloured by visual word, and the share of each word" loading="lazy">
+    <figcaption>The giraffe photo uses only 18 of the 640 words. Its profile is the share of each one.</figcaption>
+  </figure>
+
+  <h2>Step 4. Count a signature for every term</h2>
+  <p>This is where the captions come in, and the only way they come in. For a term \(t\) such as "zebra", split the 15,000 captioned photos into two groups. \(M_t\) holds the photos whose caption mentions "zebra", 257 of them, and the rest do not mention it. For every visual word, compare its average share in the two groups.</p>
+  $$s_t[k] = \frac{\operatorname{mean}_{i \in M_t} v^{(i)}_k \;-\; \operatorname{mean}_{i \notin M_t} v^{(i)}_k}{\delta_k}$$
+  <p>\(\delta_k\) is the standard deviation of word \(k\) across all the photos, so every word is measured in its own natural units. If zebra photos contain much more of word #556 than other photos do, \(s_{\text{zebra}}[556]\) is large. The list \(s_t\) over all 640 words is the signature of the term, and it becomes row \(t\) of the table \(S\).</p>
+  <p>Notice what is missing. The caption is never read by a neural network. It only decides which group a photo belongs to, through a plain string match, and all the meaning comes from the images themselves.</p>
+  <figure>
+    <img src="how/s5_signatures.jpg" alt="The signatures of zebra and giraffe over the 640 visual words" loading="lazy">
+    <figcaption>The signatures of "zebra" and "giraffe", one bar per visual word. Most words sit near zero. A few words light up, and those are the words the term is made of.</figcaption>
+  </figure>
+  <p>The signature also picks up context. "Zebra" scores high on word #612, which in these photos is dry, sandy ground. Zebras are usually photographed on such ground, and counting notices that.</p>
+
+  <h2>Step 5. Put every term on the same scale</h2>
+  <p>There is a trap. To label a patch we compare the scores of different terms, so the scores must be comparable, and raw signatures are not. A rare term gets large numbers by chance alone, because its group \(M_t\) is small and small groups are noisy. In fact a signature can never exceed a ceiling set only by how often the term is mentioned. With \(\pi_t\) the fraction of captions that name \(t\),</p>
+  $$|s_t[k]| \;\le\; \bigl(\pi_t (1 - \pi_t)\bigr)^{-1/2}$$
+  <p>The ceiling is 2 for a term in half the captions and grows without limit for rare terms. Left alone, rare terms would win patches simply for being rare.</p>
+  <p>The fix is a shuffle test. We shuffle the captions among the photos, which keeps the number of mentions but destroys any real link to the images, and recompute the signature. We repeat this 200 times and record how large the strongest signature gets by chance. Its 95th percentile is the null of the term, \(\sigma_t\), and every signature is divided by its own null.</p>
+  $$\sigma_t = \mathrm{P}_{95}\Bigl\{\max_k \bigl|s^{(b)}_t[k]\bigr|\Bigr\}_{b=1}^{200}, \qquad \tilde{s}_t[k] = \frac{s_t[k]}{\sigma_t}$$
+  <p>A score now reads as "how many times stronger than chance", for every term alike.</p>
+  <figure class="narrow">
+    <img src="how/s6_null.jpg" alt="Raw signature against the shuffle null for person and handbag" loading="lazy">
+    <figcaption>"Handbag" has the larger raw signature, but shuffled captions get it halfway there by chance. Against its own null, "person" is far stronger. Numbers from the paper, COCO.</figcaption>
+  </figure>
+  <p>This single division changes no term's ranking of patches, since it only divides by a positive number. It changes how terms compare with each other, and on COCO it raises the overlap score from 0.429 to 0.511 mIoU. In pathology every tissue term is common, the nulls are already close, and the division is left off.</p>
+
+  <h2>Step 6. Label a new image by looking up the table</h2>
+  <p>All the work so far happens once. A new image needs a single pass through the frozen encoder. Each patch is assigned to its nearest visual word, exactly as in Step 2, which gives the image factor \(\Phi\).</p>
+  $$\Phi_{kp} = \begin{cases} 1 & \text{if } w(p) = k \\ 0 & \text{otherwise} \end{cases} \qquad\Longrightarrow\qquad A_{tp} = S_{t,\,w(p)}$$
+  <p>In words, the score of term \(t\) at patch \(p\) is one number read from the table, the entry of \(t\) at the word of \(p\). To label the patch, read the row of every listed term and keep the highest.</p>
+  <figure>
+    <img src="how/s7_lookup.jpg" alt="A lookup in four steps: word map, two score maps and labels" loading="lazy">
+    <figcaption>The four steps of a lookup with one vocabulary and nothing else. The giraffe and the zebra separate cleanly. The ground has no term of its own here, so it goes to "zebra", whose signature likes dry ground.</figcaption>
+  </figure>
+  <p>The same table also scores a whole image, which is how images are ranked for a word. The image profile is compared with the signature after each word is standardised with the corpus mean \(\mu_k\) and spread \(\delta_k\).</p>
+  $$\text{score}(v, t) = \sum_{k=1}^{K} s_t[k]\, \frac{v_k - \mu_k}{\delta_k}$$
+
+  <h2>Step 7. Three refinements that keep the same form</h2>
+  <p>The plain lookup is coarse. Two patches in the same word always get the same score, and a patch near the edge of two words can fall on the wrong side. Three refinements address this. Each changes only the image factor, so the scores keep the form \(A = S\Psi\), with \(\Psi\) computed from the image alone.</p>
+  <ul>
+    <li><strong>Soft assignment.</strong> A patch shares its weight among its \(m = 16\) nearest words, more for closer ones, and its score is the weighted average of their signatures.</li>
+    <li><strong>Several vocabularies and joint words.</strong> \(k\)-means started from different seeds draws different word boundaries. We fit four vocabularies and also count each combination of four words, a joint word. A joint word seen in few photos is trusted less, with weight \(\gamma = n/(n+3)\) for a joint word seen in \(n\) photos.</li>
+    <li><strong>Smoothing along similar patches.</strong> Patches of one object usually look alike, wherever they sit in the image. Each patch's scores are averaged with those of the patches that resemble it, using the encoder's own similarities. Only patches clearly more similar than average count, at a threshold of 1.2 times the image average.</li>
+  </ul>
+  $$\Psi_{kp} = \frac{e^{\beta\, x_p^{\top} c_k}}{\sum_{k' \in N_m(p)} e^{\beta\, x_p^{\top} c_{k'}}} \quad (k \in N_m(p)), \qquad A = S\,\Psi\,W^{\top}$$
+  <p>Here \(N_m(p)\) is the set of the \(m\) nearest words of patch \(p\), \(\beta = 10\) sets how sharply the weight concentrates on the nearest word, and \(W\) holds the smoothing weights between patches.</p>
+  <figure>
+    <img src="how/s8_refine.jpg" alt="The score of zebra and the labels at three levels of refinement" loading="lazy">
+    <figcaption>The same photo at three levels of refinement. Speckled single patches disappear, and the labels follow the animals more closely.</figcaption>
+  </figure>
+  <p>On COCO, one more correction helps. A caption such as "a dog holding a frisbee" credits "frisbee" with the patches of the dog too. A second counting round lets each patch count mostly toward the named term that already fits it best. It still uses only counting and the captions.</p>
+
+  <h2>Why the factorization pays off</h2>
+  <p>Because \(A = S\Psi\), the image and the words never need to meet inside a network. An image is encoded once, whatever you later ask about it. A new term is one more row of \(S\), counted from captions in one pass, with no retraining. The table for 78 COCO terms is 67 MB, and the pathology table is 1 MB. Since only image embeddings and captions are needed, the same recipe works for any image encoder, including encoders that never saw a word of text.</p>
+
+  <h2>What it looks like</h2>
+  <p>You list the objects you expect in a photo, and CAPTOR names every patch with one of them. Patches where no listed word scores well, such as sky, water or road, are faded.</p>
+  <figure>
+    <img src="how/scenes.jpg" alt="Four scenes, each photo next to CAPTOR's labels" loading="lazy">
+    <figcaption>Four scenes, each photo next to CAPTOR's labels for the listed words.</figcaption>
+  </figure>
+  <p>Behind the labels is a score map for each word, how strongly the word matches every patch. On its own, the map already outlines the object, across very different kinds of things.</p>
+  <figure>
+    <img src="natural_examples.jpg" alt="Score maps of one term on each of ten photographs" loading="lazy">
+    <figcaption>The score of one word at every patch, red for high and blue for low.</figcaption>
+  </figure>
+
+  <h2>Results</h2>
+  <p>Results are mean intersection over union (mIoU), the standard overlap score between predicted and true regions, where 1.0 is perfect.</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Setting</th><th>CAPTOR</th><th>Strongest baseline</th></tr>
+      <tr><td>Everyday photos, COCO, 78 object classes</td><td>0.565</td><td>0.502 (ProxyCLIP)</td></tr>
+      <tr><td>Breast cancer tissue, held-out patients, CONCH image encoder</td><td>0.497</td><td>0.337 (SCLIP on the CONCH text encoder)</td></tr>
+      <tr><td>Breast cancer tissue, UNI, an encoder with no text tower</td><td>0.456</td><td>0.324 (the CONCH text encoder)</td></tr>
+    </table>
+  </div>
+  <p>On everyday photos, CAPTOR leads every training-free method compared, on COCO, Pascal VOC and Cityscapes. It is also level with a text alignment trained on the same image backbone, which needs gradients, a text encoder and several times as many captions. UNI was trained on tissue images alone, so no other method in the study can query it with words. Read through CAPTOR and given only captions, it names breast cancer tissue better than a text encoder built for pathology.</p>
+  <figure class="narrow">
+    <img src="pathology_examples.png" alt="Breast cancer fields with annotation, CAPTOR on CONCH and SCLIP on the CONCH text encoder" loading="lazy">
+    <figcaption>Five breast cancer fields from BCSS. From left, the tissue, the pathologists' annotation, CAPTOR on the CONCH image encoder, and SCLIP reading the CONCH text encoder. The number is the mIoU of each field.</figcaption>
+  </figure>
+
+  <h2>Cost</h2>
+  <p>CAPTOR saves on the word side. Making a new term searchable costs about 30 times less compute than a pass through the CLIP text encoder, and building a whole table takes seconds with no gradient training.</p>
+  <p>A standard text-image cross-attention layer scores every patch against the query, turns the scores into weights with a softmax, and pools the image with those weights.</p>
+  $$a_p = \frac{\exp\bigl(\langle g(t),\, h(x_p) \rangle / \sqrt{d}\bigr)}{\sum_{p'} \exp\bigl(\langle g(t),\, h(x_{p'}) \rangle / \sqrt{d}\bigr)}, \qquad o = \sum_p a_p\, h(x_p)$$
+  <p>The scores inside the softmax are the table \(A\). A standard layer needs the text encoder \(g\) to produce them. CAPTOR produces the same scores as a row of \(A = S\Psi\), where \(\Psi\) is computed once per image before any word is known and each term is a row of the counted table \(S\). CAPTOR replaces only these scores, and the pooling and everything after it stay as they are.</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>One new term, COCO, one GPU</th><th>CAPTOR</th><th>CLIP text encoder (SCLIP, ProxyCLIP)</th><th>Talk2DINO</th></tr>
+      <tr><td>How a term is prepared</td><td>counted from captions</td><td>text encoder over 80 prompts</td><td>text encoder over 7 prompts, plus a trained projection</td></tr>
+      <tr><td>Time</td><td>3.2 ms</td><td>37.3 ms</td><td>6.3 ms</td></tr>
+      <tr><td>Compute</td><td>15.4 GFLOPs</td><td>476.8 GFLOPs</td><td>41.7 GFLOPs</td></tr>
+      <tr><td>Learned values</td><td>16.1 M</td><td>63.4 M</td><td>72.0 M</td></tr>
+      <tr><td>Needs a pretrained text model</td><td>no</td><td>yes</td><td>yes</td></tr>
+    </table>
+  </div>
+  <ul>
+    <li><strong>Building a table.</strong> Counting the pathology table, \(k\)-means and shuffle tests included, takes 4.3 seconds on a GPU and 57 seconds on a CPU alone. Training a small text adapter on the same captions takes 160.5 seconds and 6,084 gradient steps.</li>
+    <li><strong>Labelling an image with all 78 COCO terms</strong> takes 8.2 ms with CAPTOR and 387 ms with the released configuration of Talk2DINO, whose refinement runs once per term.</li>
+    <li><strong>Ranking whole images</strong> for a word with the same table reaches 0.947 mean AUC on COCO, against 0.903 for the pooled CLIP image embedding.</li>
+  </ul>
+  <p>Encoding an image costs about the same for every method, 2.29 ms for CAPTOR and 2.17 ms for Talk2DINO. Once the terms are prepared, scoring an image takes every method under a millisecond. The gain is in adding words and building tables, and in never needing a text model at all.</p>
+
+  <h2>Limits</h2>
+  <p>CAPTOR can only name what its captions talk about. A term needs enough captioned images that mention it, about 25 on everyday photos and 100 in pathology. The answer also comes on the patch grid of the encoder, so thin structures are drawn in blocks. The COCO table knows 78 object names and no background words such as sky or road, so every patch gets the closest listed object, and the examples fade the patches where no listed term scores well.</p>
+
+  <footer>
+    Photographs from Wikimedia Commons, resized, with patches cropped for the step figures: giraffes at Dublin Zoo by William Murphy (CC BY-SA 2.0), zebras at Makalali by Dietmar Rabich (CC BY-SA 4.0), beagle on a sofa by Slyronit (CC BY-SA 4.0), elephant herd by cocoparisienne (CC0), cyclist in Quebec City by Wilfredor (CC0), Sarphatistraat street scene by Fons Heijnsbroek (CC BY-SA 4.0), Kenyan breakfast and Páteo breakfast by Bahnfrend (CC BY-SA 4.0), breakfast spread by Shixart1985 (CC BY 2.0). The ten score-map photos are credited on the <a href="./">project page</a>. Breast tissue fields from BCSS (Amgad et al., 2019), CC BY 4.0. Numbers are from the <a href="https://arxiv.org/abs/2611.05599">paper</a>.
+  </footer>
+
+</main>
+</body>
+</html>
